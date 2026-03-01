@@ -1,0 +1,7 @@
+# Polymarket Fetcher — default configuration
+# Override any value via environment variables with PM_ prefix
+# e.g. PM_LOG_LEVEL=DEBUG, PM_DATA_DIR=/mnt/data
+
+log_level: INFO
+data_dir: data
+clob_top_n_markets: 100
