@@ -77,14 +77,20 @@ class BaseHttpClient:
         limit: int = 100,
         offset_param: str = "offset",
         limit_param: str = "limit",
+        max_pages: int = 500,
         **kwargs: Any,
     ) -> list[dict[str, Any]]:
-        """Paginate through a list endpoint, returning all results."""
+        """Paginate through a list endpoint, returning all results.
+
+        Args:
+            max_pages: Safety limit to prevent infinite pagination.
+        """
         all_results: list[dict[str, Any]] = []
         offset = 0
         params = kwargs.pop("params", {})
+        page = 0
 
-        while True:
+        while page < max_pages:
             page_params = {**params, limit_param: limit, offset_param: offset}
             data = await self._get(path, params=page_params, **kwargs)
 
@@ -103,5 +109,12 @@ class BaseHttpClient:
             if len(items) < limit:
                 break
             offset += limit
+            page += 1
+
+            if page % 50 == 0:
+                log.info("pagination progress", path=path, pages=page, items=len(all_results))
+
+        if page >= max_pages:
+            log.warning("pagination hit max_pages limit", path=path, max_pages=max_pages, items=len(all_results))
 
         return all_results
