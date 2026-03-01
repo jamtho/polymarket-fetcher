@@ -164,6 +164,46 @@ State is saved:
 - **Poller errors:** Logged and skipped — the poller continues on the next cycle.
 - **Adaptive polling:** Intervals double when no new data is detected, reset when changes appear. This conserves API quota during quiet periods.
 
+## API Rate Limit Usage
+
+The service is designed to stay well under Polymarket's documented rate limits. All limits below are per 10-second sliding window as enforced by Cloudflare.
+
+### Gamma API
+
+| Poller | Requests/cycle | Interval | Sustained RPS | API Limit | Usage |
+|---|---|---|---|---|---|
+| Market Discovery `/markets` | ~340 pages | 5 min | ~1.1 | 30/s | ~3.7% |
+| Market Discovery `/events` | ~50 pages | 5 min | ~0.17 | 50/s | ~0.3% |
+| Metadata (`/tags`, `/series`, `/sports`) | 3 | 1 hour | negligible | 400/s | <0.1% |
+
+The heaviest moment is the initial crawl on first startup (~340 pages at 5 RPS = ~68 seconds at ~17% of the `/markets` limit). After that it settles to under 4%.
+
+### CLOB API
+
+| Poller | Requests/cycle | Interval | Sustained RPS | API Limit | Usage |
+|---|---|---|---|---|---|
+| Prices (`/price` + `/midpoint`) | 2 per token | 30s target | 10 (bucket-capped) | 150/s each | ~6.7% |
+| Books (`/book`) | 100 | 2 min | ~0.83 | 150/s | ~0.6% |
+
+The price poller is the largest consumer. With ~48k active tokens, a full cycle takes much longer than the 30s interval — the token bucket (10 RPS) is the real throttle, keeping us at ~7% of the CLOB limit.
+
+### Data API
+
+| Poller | Requests/cycle | Interval | Sustained RPS | API Limit | Usage |
+|---|---|---|---|---|---|
+| Trades | 1 | 60s | 0.017 | 20/s | <0.1% |
+| Holders | 50 | 10 min | 0.083 | 100/s | <0.1% |
+
+### Summary
+
+| API Group | Our Token Bucket | API Limit (general) | Steady-State Usage |
+|---|---|---|---|
+| **Gamma** | 5 RPS | 400 RPS | ~4% |
+| **CLOB** | 10 RPS | 900 RPS | ~7% |
+| **Data API** | 5 RPS | 100 RPS | <1% |
+
+**Under 10% of all rate limits in steady state.** The token buckets are intentionally set at a fraction of API limits for a wide safety margin. WebSocket connections are persistent and don't count against HTTP rate limits.
+
 ## Health Monitoring
 
 Every 5 minutes, the service logs a health check:
