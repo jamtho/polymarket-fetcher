@@ -15,7 +15,7 @@ from pm_fetcher.clients.gamma import GammaClient
 from pm_fetcher.clients.rate_limiter import RateLimiterGroup
 from pm_fetcher.config import Settings
 from pm_fetcher.pollers.clob_poller import ClobBookPoller, ClobPricePoller
-from pm_fetcher.pollers.data_poller import LeaderboardPoller, OiHoldersPoller, TradesPoller
+from pm_fetcher.pollers.data_poller import HoldersPoller, TradesPoller
 from pm_fetcher.pollers.market_discovery import MarketDiscoveryPoller
 from pm_fetcher.pollers.metadata_poller import MetadataPoller
 from pm_fetcher.state import State
@@ -62,9 +62,7 @@ async def run(settings: Settings | None = None) -> None:
         "clob/prices": _make_writer(settings.data_dir, "clob/prices"),
         "clob/books": _make_writer(settings.data_dir, "clob/books"),
         "data_api/trades": _make_writer(settings.data_dir, "data_api/trades"),
-        "data_api/oi": _make_writer(settings.data_dir, "data_api/oi"),
         "data_api/holders": _make_writer(settings.data_dir, "data_api/holders"),
-        "data_api/leaderboard": _make_writer(settings.data_dir, "data_api/leaderboard"),
         "ws_market/book": _make_writer(settings.data_dir, "ws_market/book"),
         "ws_market/price_change": _make_writer(settings.data_dir, "ws_market/price_change"),
         "ws_market/last_trade_price": _make_writer(settings.data_dir, "ws_market/last_trade_price"),
@@ -119,15 +117,10 @@ async def run(settings: Settings | None = None) -> None:
             min_interval=settings.pollers.data_trades,
             max_interval=settings.pollers.data_trades_max,
         )
-        oi_holders = OiHoldersPoller(
-            data_api, writers["data_api/oi"], writers["data_api/holders"], state,
+        holders = HoldersPoller(
+            data_api, writers["data_api/holders"], state,
             min_interval=settings.pollers.data_oi_holders,
             max_interval=settings.pollers.data_oi_holders_max,
-        )
-        leaderboard = LeaderboardPoller(
-            data_api, writers["data_api/leaderboard"], state,
-            min_interval=settings.pollers.data_leaderboard,
-            max_interval=settings.pollers.data_leaderboard_max,
         )
         metadata = MetadataPoller(
             gamma,
@@ -231,8 +224,7 @@ async def run(settings: Settings | None = None) -> None:
             asyncio.create_task(clob_prices.run(stop_event), name="clob_prices"),
             asyncio.create_task(clob_books.run(stop_event), name="clob_books"),
             asyncio.create_task(trades.run(stop_event), name="trades"),
-            asyncio.create_task(oi_holders.run(stop_event), name="oi_holders"),
-            asyncio.create_task(leaderboard.run(stop_event), name="leaderboard"),
+            asyncio.create_task(holders.run(stop_event), name="holders"),
             asyncio.create_task(metadata.run(stop_event), name="metadata"),
             asyncio.create_task(market_ws.run(stop_event), name="market_ws"),
             asyncio.create_task(sports_ws.run(stop_event), name="sports_ws"),

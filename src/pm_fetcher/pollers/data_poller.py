@@ -1,4 +1,4 @@
-"""Data API pollers — trades, OI/holders, leaderboard."""
+"""Data API pollers — trades and holders."""
 
 from __future__ import annotations
 
@@ -37,24 +37,22 @@ class TradesPoller(BasePoller):
         return False
 
 
-class OiHoldersPoller(BasePoller):
-    """Polls open interest and holder data for known markets."""
+class HoldersPoller(BasePoller):
+    """Polls top holder data for known markets."""
 
-    name = "data_oi_holders"
+    name = "data_holders"
 
     def __init__(
         self,
         data_client: DataApiClient,
-        oi_writer: JsonWriter,
-        holders_writer: JsonWriter,
+        writer: JsonWriter,
         state: State,
         *,
         min_interval: float = 600.0,
         max_interval: float = 1800.0,
     ) -> None:
-        super().__init__(oi_writer, state, min_interval=min_interval, max_interval=max_interval)
+        super().__init__(writer, state, min_interval=min_interval, max_interval=max_interval)
         self._data = data_client
-        self._holders_writer = holders_writer
 
     async def poll_once(self) -> bool:
         # Use a subset of known markets to avoid excessive requests
@@ -65,44 +63,14 @@ class OiHoldersPoller(BasePoller):
         changed = False
         for mid in market_ids:
             try:
-                oi = await self._data.get_open_interest(mid)
-                if oi:
-                    await self._writer.write({"condition_id": mid, **oi})
-                    changed = True
-            except Exception:
-                pass
-
-            try:
                 holders = await self._data.get_holders(mid)
                 if holders:
-                    await self._holders_writer.write({"condition_id": mid, **holders})
+                    await self._writer.write_batch(
+                        [{"condition_id": mid, **h} if isinstance(h, dict) else {"condition_id": mid, "data": h}
+                         for h in holders]
+                    )
                     changed = True
             except Exception:
                 pass
 
         return changed
-
-
-class LeaderboardPoller(BasePoller):
-    """Polls the trading leaderboard."""
-
-    name = "data_leaderboard"
-
-    def __init__(
-        self,
-        data_client: DataApiClient,
-        writer: JsonWriter,
-        state: State,
-        *,
-        min_interval: float = 1800.0,
-        max_interval: float = 3600.0,
-    ) -> None:
-        super().__init__(writer, state, min_interval=min_interval, max_interval=max_interval)
-        self._data = data_client
-
-    async def poll_once(self) -> bool:
-        lb = await self._data.get_leaderboard(limit=100)
-        if lb:
-            await self._writer.write_batch(lb)
-            return True
-        return False

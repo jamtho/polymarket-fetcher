@@ -25,11 +25,8 @@ class PollerIntervals(BaseSettings):
     data_trades: float = 60
     data_trades_max: float = 300
 
-    data_oi_holders: float = 600  # 10 min
+    data_oi_holders: float = 600  # 10 min (used for holders)
     data_oi_holders_max: float = 1800
-
-    data_leaderboard: float = 1800  # 30 min
-    data_leaderboard_max: float = 3600
 
     metadata: float = 3600  # 1 hour
     metadata_max: float = 7200

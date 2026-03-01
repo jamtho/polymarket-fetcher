@@ -1,4 +1,4 @@
-"""Data API client — trades, OI, holders, leaderboard."""
+"""Data API client — trades, holders."""
 
 from __future__ import annotations
 
@@ -30,24 +30,19 @@ class DataApiClient(BaseHttpClient):
         limit: int = 100,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
-        """Fetch recent trades, optionally filtered by market."""
+        """Fetch recent trades, optionally filtered by market conditionId."""
         params: dict[str, Any] = {"limit": limit, "offset": offset}
         if market:
             params["market"] = market
         result = await self._get("/trades", params=params)
         return result if isinstance(result, list) else []
 
-    async def get_open_interest(self, condition_id: str) -> dict[str, Any]:
-        """Get open interest for a market condition."""
-        return await self._get(f"/open-interest/{condition_id}")
+    async def get_holders(self, condition_id: str) -> list[dict[str, Any]]:
+        """Get top holders for a market's tokens.
 
-    async def get_holders(self, condition_id: str) -> dict[str, Any]:
-        """Get holder counts for a market condition."""
-        return await self._get(f"/holders/{condition_id}")
-
-    async def get_leaderboard(self, limit: int = 100) -> list[dict[str, Any]]:
-        """Fetch the trading leaderboard."""
-        result = await self._get("/leaderboard", params={"limit": limit})
+        Returns a list of token holder records with amounts.
+        """
+        result = await self._get("/holders", params={"market": condition_id})
         return result if isinstance(result, list) else []
 
     async def get_market_trades(self, condition_id: str, limit: int = 100) -> list[dict[str, Any]]:
