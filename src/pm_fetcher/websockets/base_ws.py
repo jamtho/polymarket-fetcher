@@ -126,18 +126,20 @@ class BaseWebSocket(ABC):
                     async for msg in ws:
                         if stop.is_set():
                             break
-                        if msg.type == aiohttp.WSMsgType.TEXT:
+                        if msg.type in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY):
                             try:
                                 data = orjson.loads(msg.data)
                                 await self.on_message(data)
-                            except Exception:
-                                log.exception("ws message parse error", ws=self.name)
-                        elif msg.type == aiohttp.WSMsgType.BINARY:
-                            try:
-                                data = orjson.loads(msg.data)
-                                await self.on_message(data)
-                            except Exception:
-                                log.exception("ws binary parse error", ws=self.name)
+                            except orjson.JSONDecodeError:
+                                log.warning(
+                                    "ws json decode error", ws=self.name,
+                                    preview=str(msg.data)[:200],
+                                )
+                            except Exception as exc:
+                                log.exception(
+                                    "ws message handler error", ws=self.name,
+                                    error=str(exc),
+                                )
                         elif msg.type == aiohttp.WSMsgType.PING:
                             await ws.pong(msg.data)
                         elif msg.type in (aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.ERROR):

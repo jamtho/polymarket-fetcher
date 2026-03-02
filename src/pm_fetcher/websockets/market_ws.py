@@ -20,6 +20,12 @@ class MarketWebSocket(BaseWebSocket):
 
     Dynamically updates subscriptions as new markets are discovered.
     Batches subscriptions in groups of `batch_size`.
+
+    Message formats from the server:
+    - Initial book snapshot: list of dicts [{market, asset_id, bids, asks, ...}, ...]
+    - Price changes: {market, price_changes: [{asset_id, price, side, ...}]}
+    - Last trade: {market, last_trade_price: ...}
+    - Other events with event_type field
     """
 
     name = "ws_market"
@@ -76,19 +82,44 @@ class MarketWebSocket(BaseWebSocket):
         if new_ids and self._connected:
             await self._subscribe_batch(new_ids)
 
-    async def on_message(self, data: dict[str, Any]) -> None:
-        """Route messages to the appropriate writer based on event type."""
-        event_type = data.get("event_type", data.get("type", "unknown"))
+    async def on_message(self, data: Any) -> None:
+        """Route messages to the appropriate writer based on message shape.
 
-        # Route to specific writers
+        Handles both list (book snapshots) and dict (event updates) formats.
+        """
+        # Book snapshot: server sends a list of orderbook entries
+        if isinstance(data, list):
+            if data:  # skip empty []
+                writer = self._writers.get("book", self._writer)
+                await writer.write_batch(data)
+            return
+
+        if not isinstance(data, dict):
+            return
+
+        # Detect event type from message shape
+        event_type = self._detect_event_type(data)
         writer_key = self._route_event(event_type)
-        writer = self._writers.get(writer_key, self._writer)
 
-        await self._enqueue({**data, "_event_type": event_type})
-
-        # Also write directly via the specific writer
         if writer_key in self._writers:
             await self._writers[writer_key].write(data)
+        else:
+            await self._writer.write(data)
+
+    @staticmethod
+    def _detect_event_type(data: dict[str, Any]) -> str:
+        """Infer event type from message keys."""
+        if "event_type" in data:
+            return data["event_type"]
+        if "price_changes" in data:
+            return "price_change"
+        if "last_trade_price" in data:
+            return "last_trade_price"
+        if "bids" in data or "asks" in data:
+            return "book"
+        if "type" in data:
+            return data["type"]
+        return "unknown"
 
     @staticmethod
     def _route_event(event_type: str) -> str:
