@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Structured logging setup with structlog."""
 
 from __future__ import annotations

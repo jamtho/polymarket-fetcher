@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Base WebSocket client — reconnection, keepalive, message queue, writer."""
 
 from __future__ import annotations

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Pydantic Settings — all tunables with env/YAML override."""
 
 from __future__ import annotations

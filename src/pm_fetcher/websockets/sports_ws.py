@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Sports WebSocket — live sports event scores."""
 
 from __future__ import annotations

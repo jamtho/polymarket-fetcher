@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """CLOB poller — price/midpoint snapshots and orderbook for active markets."""
 
 from __future__ import annotations

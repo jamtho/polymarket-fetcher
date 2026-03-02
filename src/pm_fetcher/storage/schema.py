@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Polars schema definitions for Parquet compaction.
 
 Schemas are intentionally permissive — we store the raw JSON fields

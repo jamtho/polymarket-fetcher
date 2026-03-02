@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Base poller — scheduling loop with adaptive intervals."""
 
 from __future__ import annotations

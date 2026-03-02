@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Append-only JSONL writer with time-based file rotation."""
 
 from __future__ import annotations

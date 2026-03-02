@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """JSONL -> Parquet compaction via polars.
 
 Runs periodically to convert closed JSONL files (past the current hour

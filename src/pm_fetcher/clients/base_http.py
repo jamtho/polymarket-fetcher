@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Shared HTTP client with rate limiting, retry, and session management."""
 
 from __future__ import annotations

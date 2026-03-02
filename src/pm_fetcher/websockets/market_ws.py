@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Market WebSocket — orderbook, trades, prices with dynamic subscriptions."""
 
 from __future__ import annotations

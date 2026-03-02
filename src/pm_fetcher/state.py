@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Persistent state — known markets, last-fetch timestamps.
 
 State is saved as a JSON file and loaded on startup for resumption.

@@ -379,6 +379,6 @@ src/pm_fetcher/
     └── compactor.py         # JSONL → Parquet + retention cleanup
 ```
 
-## License
+## Copyright
 
-MIT
+Copyright (c) 2026 James Thompson. All rights reserved.

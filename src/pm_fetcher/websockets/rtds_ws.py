@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """RTDS WebSocket — activity feed and crypto prices."""
 
 from __future__ import annotations

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Asyncio orchestrator — wires all components into a TaskGroup."""
 
 from __future__ import annotations

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Standalone backfill script — crawls all markets (open + closed) for backtesting.
 
 Usage:

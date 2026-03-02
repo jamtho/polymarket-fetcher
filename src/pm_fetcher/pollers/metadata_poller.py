@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Metadata poller — tags, series, sports (slow-changing reference data)."""
 
 from __future__ import annotations

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Data API pollers — trades and holders."""
 
 from __future__ import annotations

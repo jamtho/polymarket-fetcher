@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """UTC time helpers and rotation boundary calculations."""
 
 from __future__ import annotations

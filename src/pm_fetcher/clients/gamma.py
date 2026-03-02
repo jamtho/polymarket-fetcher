@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Gamma API client — events, markets, tags, series, sports."""
 
 from __future__ import annotations

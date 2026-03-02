@@ -1,3 +1,5 @@
+# Copyright (c) 2026 James Thompson. All rights reserved.
+
 """Market discovery poller — crawls Gamma /markets and /events."""
 
 from __future__ import annotations
