@@ -148,6 +148,40 @@ PM_STORAGE__COMPACTION_INTERVAL=600
 
 See the `Settings` class in [`src/pm_fetcher/config.py`](src/pm_fetcher/config.py) for all available options with defaults.
 
+## Historical Backfill (Closed Markets)
+
+By default, the service only tracks **open** markets (~33k). For backtesting, a separate script crawls all ~525k markets (open + closed):
+
+```bash
+# Partial test — fetch 500 markets to verify
+uv run pm-backfill --limit 500
+
+# Full backfill (~525k markets, ~17 min)
+uv run pm-backfill
+
+# Resume an interrupted backfill
+uv run pm-backfill --resume
+
+# Start over (clears progress)
+uv run pm-backfill --reset
+```
+
+| Metric | Value |
+|---|---|
+| Total markets (open + closed) | ~525,000 |
+| Closed/resolved markets | ~492,000 |
+| Pages to crawl (100/page) | ~5,254 |
+| Time at 5 RPS | ~17 minutes |
+| Gamma API limit usage | ~1.25% (5 of 400 RPS) |
+
+The backfill is a **separate script** (`pm-backfill`), not part of the main service. It:
+- **Checkpoints every 500 pages** — Ctrl+C and `--resume` to continue
+- **Tracks completion in `state.json`** — won't re-run unless you `--reset`
+- **Writes to the same `gamma/markets` stream** — compacted into Parquet alongside live data
+- **Safe to run while the main service is running** — uses its own rate limiter instance
+
+After the backfill, closed markets are in Parquet for analysis. New closures are captured naturally by the regular poller as markets resolve.
+
 ## State & Recovery
 
 The service saves its state to `state.json` (known markets, token IDs, last-fetch timestamps). On restart, it resumes from where it left off. If the state file is missing or corrupt, it starts fresh and re-discovers everything.
@@ -219,6 +253,102 @@ Every 5 minutes, the service logs a health check:
 }
 ```
 
+## Testing & Verification
+
+### Quick smoke test
+
+Start the service and let it run for 5 minutes, then check output:
+
+```bash
+# Start the service
+uv run pm-fetcher
+
+# After ~60 seconds, check raw data is flowing
+ls data/raw/gamma/markets/
+ls data/raw/ws_market/price_change/
+
+# Verify records have correct metadata
+python -c "
+import orjson, glob
+f = sorted(glob.glob('data/raw/gamma/markets/*.jsonl'))[-1]
+line = open(f,'rb').readline()
+rec = orjson.loads(line)
+print(f'id={rec[\"id\"]}, _source={rec[\"_source\"]}, has_fetched_at={\"_fetched_at\" in rec}')
+"
+```
+
+Expected within the first 5 minutes:
+- `gamma/markets/` — ~33k market records per discovery cycle
+- `gamma/events/` — ~8k event records
+- `ws_market/price_change/` — thousands of real-time price updates
+- `clob/prices/` — price snapshots for active tokens
+- `data_api/trades/` — 100 recent trades per cycle
+
+### Verify Parquet compaction
+
+Compaction runs every 15 minutes on JSONL files from completed hours. To see it in action:
+
+```bash
+# Run for at least 1 hour + 15 minutes past the hour boundary
+uv run pm-fetcher
+
+# Check for Parquet output
+ls data/parquet/gamma/markets/
+# Expected: dt=YYYY-MM-DD/hour=HH.parquet
+
+# Query with polars
+python -c "
+import polars as pl
+df = pl.scan_parquet('data/parquet/gamma/markets/').collect()
+print(f'{df.shape[0]} rows, {df.shape[1]} columns')
+print(df.select('id', 'question', 'volume').head(3))
+"
+```
+
+### Test backfill
+
+```bash
+# Fetch 500 markets to verify the backfill works
+uv run pm-backfill --limit 500
+
+# Check output includes closed markets
+python -c "
+import orjson, glob
+f = sorted(glob.glob('data/raw/gamma/markets/*.jsonl'))[-1]
+lines = open(f,'rb').readlines()[-500:]
+closed = sum(1 for l in lines if orjson.loads(l).get('closed'))
+print(f'Closed markets in last 500 records: {closed}')
+"
+
+# Test resume
+uv run pm-backfill --resume --limit 500  # continues from offset 500
+```
+
+### Verify WebSocket streams
+
+```bash
+# Start the service and watch logs for WS connections
+uv run pm-fetcher 2>&1 | grep -E "ws (connected|subscribed|json decode)"
+
+# Expected:
+#   ws connected  ws=ws_market
+#   ws connected  ws=ws_sports
+#   ws connected  ws=ws_rtds
+#   ws subscribed ws=ws_market count=NNNNN
+```
+
+The `INVALID OPERATION` warnings after WS subscription are expected — the Polymarket WS server rejects some subscription batches when too many tokens are sent. The data still flows correctly for accepted subscriptions.
+
+### Verify rate limits
+
+Monitor the structured logs for rate limit warnings:
+
+```bash
+uv run pm-fetcher 2>&1 | grep "rate limited"
+```
+
+Under normal operation you should see **zero** rate limit warnings. The token buckets are set at a fraction of API limits (see [API Rate Limit Usage](#api-rate-limit-usage)).
+
 ## Architecture
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for a detailed technical deep-dive into the system design, data flow, component interactions, and design decisions.
@@ -228,6 +358,7 @@ See [`ARCHITECTURE.md`](ARCHITECTURE.md) for a detailed technical deep-dive into
 ```
 src/pm_fetcher/
 ├── main.py                  # Orchestrator — runs 13 concurrent tasks
+├── backfill.py              # Standalone closed-market backfill script
 ├── config.py                # All settings (Pydantic + YAML + env)
 ├── state.py                 # Persistent state for crash recovery
 ├── clients/                 # HTTP API clients with rate limiting

@@ -100,3 +100,22 @@ class State:
             self._data["last_fetch"] = {}
         self._data["last_fetch"][key] = ts or unix_now()
         self._dirty = True
+
+    @property
+    def backfill_completed(self) -> bool:
+        return self._data.get("backfill_completed", False)
+
+    @backfill_completed.setter
+    def backfill_completed(self, value: bool) -> None:
+        self._data["backfill_completed"] = value
+        self._dirty = True
+
+    @property
+    def backfill_offset(self) -> int:
+        """Resume offset for interrupted backfill."""
+        return self._data.get("backfill_offset", 0)
+
+    @backfill_offset.setter
+    def backfill_offset(self, value: int) -> None:
+        self._data["backfill_offset"] = value
+        self._dirty = True

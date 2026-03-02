@@ -46,6 +46,19 @@ class GammaClient(BaseHttpClient):
             max_pages=max_pages,
         )
 
+    async def get_markets_page(
+        self, limit: int = 100, offset: int = 0, *, closed: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch a single page of markets with optional closed filter.
+
+        Args:
+            closed: "true", "false", or None (no filter = all markets).
+        """
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if closed is not None:
+            params["closed"] = closed
+        return await self._get("/markets", params=params)
+
     async def get_events(self, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
         """Fetch a page of open events."""
         return await self._get(

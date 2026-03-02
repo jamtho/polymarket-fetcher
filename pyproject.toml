@@ -20,6 +20,7 @@ dependencies = [
 
 [project.scripts]
 pm-fetcher = "pm_fetcher.main:cli_entry"
+pm-backfill = "pm_fetcher.backfill:cli_entry"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pm_fetcher"]

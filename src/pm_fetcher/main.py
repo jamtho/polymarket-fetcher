@@ -235,6 +235,7 @@ async def run(settings: Settings | None = None) -> None:
             asyncio.create_task(health_logger(), name="health_logger"),
         ]
 
+
         try:
             # Wait for stop signal (KeyboardInterrupt on Windows)
             await stop_event.wait()
