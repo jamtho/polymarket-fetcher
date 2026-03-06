@@ -270,6 +270,9 @@ Tests use `pytest` + `pytest-asyncio` and live under `tests/`. No network access
 | `test_base_ws.py` | Backoff, fallback, queue, text ping filtering | Exponential backoff math, fallback activates after N failures, queue drain and overflow, subclass text pong sets |
 | `test_market_ws.py` | Subscribe format, batching, event detection, message routing, keepalive | Initial `type:market` vs dynamic `operation:subscribe`, batch splitting, parametrized event type detection, messages routed to correct writers, text `PING` keepalive |
 | `test_sports_ws.py` | Text ping/pong, keepalive | Responds `pong` to server `ping`, no-op keepalive (server-initiated) |
+| `test_json_writer.py` | Write metadata, append, batch, rotation, close/flush | Records get `_fetched_at`/`_source`, multiple writes append to same file, batch writes share timestamp, hourly/daily rotation, file re-open after close |
+| `test_compactor.py` | JSONL→Parquet, skip active, cleanup | Compacts closed-hour files to Hive-partitioned Parquet, skips current hour/day, deletes empty files, retention cleanup |
+| `test_state.py` | Save/load, dirty tracking, corruption, backfill | Roundtrip persistence, dirty flag on mutations, graceful handling of corrupt/non-dict JSON, backfill offset resume |
 
 **Testing approach:**
 
