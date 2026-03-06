@@ -72,6 +72,13 @@ class BaseWebSocket(ABC):
         except asyncio.QueueFull:
             log.warning("ws queue full, dropping message", ws=self.name)
 
+    # Text strings the server may send as keepalive messages.
+    # Subclasses set this to skip JSON-decoding these messages.
+    _text_pong_messages: set[str] = set()
+
+    async def _on_text_ping(self, ws: aiohttp.ClientWebSocketResponse, text: str) -> None:
+        """Called when a text ping/pong message is received. Override to respond."""
+
     async def _keepalive(self, ws: aiohttp.ClientWebSocketResponse, stop: asyncio.Event) -> None:
         """Send periodic pings to keep the connection alive."""
         while not stop.is_set() and not ws.closed:
@@ -129,6 +136,10 @@ class BaseWebSocket(ABC):
                         if stop.is_set():
                             break
                         if msg.type in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY):
+                            raw = msg.data if isinstance(msg.data, str) else msg.data.decode()
+                            if raw.strip() in self._text_pong_messages:
+                                await self._on_text_ping(ws, raw.strip())
+                                continue
                             try:
                                 data = orjson.loads(msg.data)
                                 await self.on_message(data)

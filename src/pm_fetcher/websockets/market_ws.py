@@ -31,6 +31,7 @@ class MarketWebSocket(BaseWebSocket):
     """
 
     name = "ws_market"
+    _text_pong_messages = {"PONG"}
 
     def __init__(
         self,
@@ -50,6 +51,15 @@ class MarketWebSocket(BaseWebSocket):
         self._batch_size = batch_size
         self._subscribed_ids: set[str] = set()
 
+    async def _keepalive(self, ws: aiohttp.ClientWebSocketResponse, stop: asyncio.Event) -> None:
+        """Send text PING every 10s as required by the market channel."""
+        while not stop.is_set() and not ws.closed:
+            try:
+                await ws.send_str("PING")
+                await asyncio.sleep(10.0)
+            except Exception:
+                break
+
     async def on_connect(self, ws: aiohttp.ClientWebSocketResponse) -> None:
         """Subscribe to all known active token IDs."""
         token_ids = self._state.active_token_ids
@@ -57,9 +67,11 @@ class MarketWebSocket(BaseWebSocket):
             log.info("no token IDs to subscribe", ws=self.name)
             return
 
-        await self._subscribe_batch(token_ids)
+        await self._subscribe_batch(token_ids, initial=True)
 
-    async def _subscribe_batch(self, token_ids: list[str]) -> None:
+    async def _subscribe_batch(
+        self, token_ids: list[str], *, initial: bool = False,
+    ) -> None:
         """Subscribe in batches to avoid message size limits."""
         new_ids = [tid for tid in token_ids if tid not in self._subscribed_ids]
         if not new_ids:
@@ -67,13 +79,21 @@ class MarketWebSocket(BaseWebSocket):
 
         for i in range(0, len(new_ids), self._batch_size):
             batch = new_ids[i : i + self._batch_size]
-            msg = {
-                "type": "subscribe",
-                "channel": "market",
-                "assets_ids": batch,
-            }
+            if initial and not self._subscribed_ids:
+                msg: dict[str, Any] = {
+                    "type": "market",
+                    "assets_ids": batch,
+                    "custom_feature_enabled": True,
+                }
+            else:
+                msg = {
+                    "operation": "subscribe",
+                    "assets_ids": batch,
+                    "custom_feature_enabled": True,
+                }
             await self.send_json(msg)
             self._subscribed_ids.update(batch)
+            initial = False
 
         log.info("ws subscribed", ws=self.name, count=len(new_ids), total=len(self._subscribed_ids))
 
