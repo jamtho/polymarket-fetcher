@@ -253,9 +253,34 @@ Every 5 minutes, the service logs a health check:
 }
 ```
 
-## Testing & Verification
+## Testing
 
-### Quick smoke test
+### Automated tests
+
+```bash
+uv run pytest tests/ -v
+```
+
+Tests use `pytest` + `pytest-asyncio` and live under `tests/`. No network access, no API keys, no running service required — everything is mocked.
+
+**What's covered:**
+
+| Module | Tests | What's verified |
+|---|---|---|
+| `test_base_ws.py` | Backoff, fallback, queue, text ping filtering | Exponential backoff math, fallback activates after N failures, queue drain and overflow, subclass text pong sets |
+| `test_market_ws.py` | Subscribe format, batching, event detection, message routing, keepalive | Initial `type:market` vs dynamic `operation:subscribe`, batch splitting, parametrized event type detection, messages routed to correct writers, text `PING` keepalive |
+| `test_sports_ws.py` | Text ping/pong, keepalive | Responds `pong` to server `ping`, no-op keepalive (server-initiated) |
+
+**Testing approach:**
+
+- **Unit tests only** — each WebSocket subclass is tested in isolation with mock writers and mock `aiohttp.ClientWebSocketResponse` objects
+- **No integration/e2e tests** — the service depends on live Polymarket APIs; integration testing is done manually (see smoke tests below)
+- **Parametrized cases** for event type detection and routing to cover all known message shapes
+- **Async tests** use `pytest-asyncio` with `asyncio_mode = "auto"` (configured in `pyproject.toml`)
+
+### Manual verification
+
+#### Quick smoke test
 
 Start the service and let it run for 5 minutes, then check output:
 
@@ -284,7 +309,7 @@ Expected within the first 5 minutes:
 - `clob/prices/` — price snapshots for active tokens
 - `data_api/trades/` — 100 recent trades per cycle
 
-### Verify Parquet compaction
+#### Verify Parquet compaction
 
 Compaction runs every 15 minutes on JSONL files from completed hours. To see it in action:
 
@@ -305,7 +330,7 @@ print(df.select('id', 'question', 'volume').head(3))
 "
 ```
 
-### Test backfill
+#### Test backfill
 
 ```bash
 # Fetch 500 markets to verify the backfill works
@@ -324,7 +349,7 @@ print(f'Closed markets in last 500 records: {closed}')
 uv run pm-backfill --resume --limit 500  # continues from offset 500
 ```
 
-### Verify WebSocket streams
+#### Verify WebSocket streams
 
 ```bash
 # Start the service and watch logs for WS connections
@@ -337,9 +362,7 @@ uv run pm-fetcher 2>&1 | grep -E "ws (connected|subscribed|json decode)"
 #   ws subscribed ws=ws_market count=NNNNN
 ```
 
-The `INVALID OPERATION` warnings after WS subscription are expected — the Polymarket WS server rejects some subscription batches when too many tokens are sent. The data still flows correctly for accepted subscriptions.
-
-### Verify rate limits
+#### Verify rate limits
 
 Monitor the structured logs for rate limit warnings:
 
